@@ -7,8 +7,12 @@ import argparse
 parser = argparse.ArgumentParser(description='Hide a message in a png file using LSB method')
 parser.add_argument('-f', "--filename", type=str, required=True,
                     help='The filename to use')
-parser.add_argument('-t', "--text", type=str,  required=True,
+parser.add_argument('-o', "--output", type=str, required=True,
+                    help='The output filename')
+parser.add_argument('-t', "--text", type=str, default=None,
                     help='The top secret text to be sent')
+parser.add_argument('-m', "--mode", type=str, choices=["write", "read"], default="write",
+                    help="Read to read a msg from a png, wrtie to write a msg in a png")
 
 args = parser.parse_args()
 
@@ -116,26 +120,48 @@ def hide_message(rgb_img, message):
             i+=1
     return new_rgb_img
 
-if __name__ == "__main__":
-    print(f"Hiding '{args.text}' in out.png from image {args.filename}")
+def find_message(rgb_img):
+    msg = ""
+    for row in rgb_img:
+        for px in row:
+            _, h = split_number(px[0])
+            _, l = split_number(px[1])
+            msg += chr(merge_number(h, l))
+    return msg
 
+if __name__ == "__main__":
+    
     r=png.Reader(filename=args.filename)
     width, height, rows, infos = r.read()
 
     int_img = [list(r) for r in rows]
     rgb_img = int_to_rgb_img(int_img, infos["palette"])
 
-    # sanity check
-    n_px = len(rgb_img[0]) * len(rgb_img)
-    n_msg = len(args.text)
-    if n_px < n_msg:
-        raise MemoryError(f"The text ({n_msg} chars) is too fat for the image you have choosen ({n_px} pixels)")
 
-    new_rgb_img = hide_message(rgb_img, args.text)
+    if args.mode == "write":
+        if args.text is None:
+            parser.print_help()
+            print("main.py: error: the following arguments are required when in writing mode: -t/--text")
+            exit(0)
 
-    # save new image in out.png
-    palette = create_palette(new_rgb_img)
-    new_int_img = rgb_to_int_img(new_rgb_img, palette)
-    w = png.Writer(len(new_int_img[0]), len(new_int_img), palette=palette, bitdepth=8)
-    f = open('out.png', 'wb')
-    w.write(f, new_int_img)
+        print(f"Hiding '{args.text}' in {args.output} from image {args.filename}")
+
+        # sanity check
+        n_px = len(rgb_img[0]) * len(rgb_img)
+        n_msg = len(args.text)
+        if n_px < n_msg:
+            raise MemoryError(f"The text ({n_msg} chars) is too fat for the image you have choosen ({n_px} pixels)")
+
+        new_rgb_img = hide_message(rgb_img, args.text)
+
+        # save new image in out.png
+        palette = create_palette(new_rgb_img)
+        new_int_img = rgb_to_int_img(new_rgb_img, palette)
+        w = png.Writer(len(new_int_img[0]), len(new_int_img), palette=palette, bitdepth=8)
+        f = open(args.output, 'wb')
+        w.write(f, new_int_img)
+
+    elif args.mode == "read":
+        msg = find_message(rgb_img)
+        with open(args.output, "w") as fout:
+            fout.write(msg)
