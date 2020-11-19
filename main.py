@@ -7,8 +7,8 @@ import argparse
 parser = argparse.ArgumentParser(description='Hide a message in a png file using LSB method')
 parser.add_argument('-f', "--filename", type=str, required=True,
                     help='The filename to use')
-parser.add_argument('-m', "--message", type=str,  required=True,
-                    help='The top secret message to be sent')
+parser.add_argument('-t', "--text", type=str,  required=True,
+                    help='The top secret text to be sent')
 
 args = parser.parse_args()
 
@@ -117,7 +117,7 @@ def hide_message(rgb_img, message):
     return new_rgb_img
 
 if __name__ == "__main__":
-    print(f"Hiding '{args.message}' in out.png from image {args.filename}")
+    print(f"Hiding '{args.text}' in out.png from image {args.filename}")
 
     r=png.Reader(filename=args.filename)
     width, height, rows, infos = r.read()
@@ -125,9 +125,13 @@ if __name__ == "__main__":
     int_img = [list(r) for r in rows]
     rgb_img = int_to_rgb_img(int_img, infos["palette"])
 
-    #TODO : Check if im size if enought for msg len
+    # sanity check
+    n_px = len(rgb_img[0]) * len(rgb_img)
+    n_msg = len(args.text)
+    if n_px < n_msg:
+        raise MemoryError(f"The text ({n_msg} chars) is too fat for the image you have choosen ({n_px} pixels)")
 
-    new_rgb_img = hide_message(rgb_img, args.message)
+    new_rgb_img = hide_message(rgb_img, args.text)
 
     # save new image in out.png
     palette = create_palette(new_rgb_img)
