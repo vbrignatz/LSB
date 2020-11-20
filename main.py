@@ -8,8 +8,6 @@ optional arguments:
   -h, --help            show this help message and exit
   -f FILENAME, --filename FILENAME
                         The filename to use
-  -o OUTPUT, --output OUTPUT
-                        The output filename
   -t TEXT, --text TEXT  The top secret text to be sent
   -m {write,read}, --mode {write,read}
                         Read to read a msg from a png, wrtie to write a msg in a png
@@ -20,12 +18,11 @@ Author : Vincent Brignatz
 
 import png
 import argparse
+import subprocess
 
 parser = argparse.ArgumentParser(description='Read or write a message in a png file using LSB method')
 parser.add_argument('-f', "--filename", type=str, required=True,
                     help='The filename to use')
-parser.add_argument('-o', "--output", type=str, required=True,
-                    help='The output filename')
 parser.add_argument('-t', "--text", type=str, default=None,
                     help='The top secret text to be sent')
 parser.add_argument('-m', "--mode", type=str, choices=["write", "read"], default="write",
@@ -66,21 +63,6 @@ def replace_lsb(number, bits):
     """
     return (number & 0b11110000) + bits
 
-def palette_to_rgba(idx_img, palette):
-    """ Put the element of palette in idx_img by using the indice in idx_img.
-        This is usefull to convert the palette system of pypng to a rgb matrix.
-        (List<List<int>>) ~> (List<List<Tuple<int>>>)
-
-        >>> palette_to_rgba([[0, 1], [0, 2]], [(1, 2, 3), (4, 5, 6), (7, 8, 9)])
-        [[1, 2, 3,  4, 5, 6], [1, 2, 3,  7, 8, 9]]
-    """
-    rgba_img = []
-    for r in idx_img:
-        rgba_img.append([])
-        for px in r:
-            rgba_img[-1].extend(palette[px])
-    return rgba_img
-
 def hide_message(rgba_img, message):
     """ Write the lsb from R and G channel of the picture to hide the message.
         (List<List<Tuple<int>>>, str) ~> (List<List<Tuple<int>>>)
@@ -117,10 +99,6 @@ if __name__ == "__main__":
     r=png.Reader(filename=args.filename)
     width, height, rows, infos = r.asRGBA8()
     rgba_img = [list(r) for r in rows]
-    
-    # convert is palette mode
-    if "palette" in infos:
-        rgba_img = palette_to_rgba(rgba_img, infos["palette"])
 
     if args.mode == "write":
         # Check we have a message
@@ -129,7 +107,7 @@ if __name__ == "__main__":
             print("main.py: error: the following arguments are required when in writing mode: -t/--text")
             exit(0)
 
-        print(f"Hiding '{args.text}' in {args.output} from image {args.filename}")
+        print(f"Hiding '{args.text}' in hidden.png from image {args.filename}")
 
         # sanity check
         n_px = width * height
@@ -140,15 +118,19 @@ if __name__ == "__main__":
         # hide the message
         new_rgba_img = hide_message(rgba_img, args.text)
 
-        # save new image in out.png 
+        # save new image in hidden.png 
         w = png.Writer(width, height, bitdepth=8, greyscale=False, alpha=True)
-        f = open(args.output, 'wb')
+        f = open("hidden.png", 'wb')
         w.write(f, new_rgba_img)
 
     elif args.mode == "read":
         # Find the message
         msg = find_message(rgba_img)
 
-        # Write the message in the ouput file
-        with open(args.output, "w") as fout:
+        # Write the message in the a file
+        with open("hidden.txt", "w") as fout:
             fout.write(msg)
+        # cat hidden.txt | strings | head -n 1
+
+        output = subprocess.check_output(["strings", "hidden.txt"])
+        print(output.split(b'\n')[0])
