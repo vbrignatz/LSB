@@ -126,11 +126,5 @@ if __name__ == "__main__":
     elif args.mode == "read":
         # Find the message
         msg = find_message(rgba_img)
-
-        # Write the message in the a file
-        with open("hidden.txt", "w") as fout:
-            fout.write(msg)
-        # cat hidden.txt | strings | head -n 1
-
-        output = subprocess.check_output(["strings", "hidden.txt"])
+        output = subprocess.check_output(["strings"], input=bytes(msg, "utf-8"))
         print(output.split(b'\n')[0])
