@@ -155,10 +155,13 @@ def find_message(rgb_img):
 if __name__ == "__main__":
     # Read the image
     r=png.Reader(filename=args.filename)
-    width, height, rows, infos = r.read()
-
+    width, height, rows, infos = r.asRGBA8()
     int_img = [list(r) for r in rows]
-    rgb_img = int_to_rgb_img(int_img, infos["palette"])
+    
+    if "palette" in infos:
+        rgb_img = int_to_rgb_img(int_img, infos["palette"])
+    else:
+        rgb_img = [[(row[i], row[i+1], row[i+2], row[i+3]) for i in range(0, len(row)-3, 4)] for row in int_img]
 
 
     if args.mode == "write":
@@ -179,7 +182,7 @@ if __name__ == "__main__":
         # hide the message
         new_rgb_img = hide_message(rgb_img, args.text)
 
-        # save new image in out.png
+        # save new image in out.png as a palette rgba
         palette = create_palette(new_rgb_img)
         new_int_img = rgb_to_int_img(new_rgb_img, palette)
         w = png.Writer(len(new_int_img[0]), len(new_int_img), palette=palette, bitdepth=8)
