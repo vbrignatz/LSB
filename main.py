@@ -73,10 +73,9 @@ def hide_message(rgba_img, message):
     width = int(len(rgba_img[0]) / 4)
     for k, char in enumerate(message):
         h, l = split_number(ord(char))
-        j = int(k/width)
-        i = k%width
-        rgba_img[j][i*4] = h
-        rgba_img[j][i*4+1] = l
+        i, j = k%width, int(k/width)
+        rgba_img[j][i*4]   = replace_lsb(rgba_img[j][i*4], h)
+        rgba_img[j][i*4+1] = replace_lsb(rgba_img[j][i*4+1], l)
     return rgba_img
 
 def find_message(rgba_img):
