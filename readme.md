@@ -1,6 +1,6 @@
 # General info
 
-This program use the least significant bits of the Red and Green channel of a png file to hide or read a message.
+This program use the least significant bits of the rgba channel of a png file to hide or read a message.
 
 # How to use 
 
@@ -16,6 +16,14 @@ To read a message from a picture :
 
 the hidden message will be saved in `hidden.txt`
 
-## PNG types
+# PNG types
 
 This program works with all kind of png files (greyscale, greyscale+alpha, rgb, rgba, palette or not).
+
+# Steganography
+
+If we use 4 bits in the Red and Blue channels to hide our 8 bits ascii characters, the naked eye can see the color distortion (you may need to zoom in) :  
+![image](images/rb_channel.png)
+
+If we use 2 bits in each of the rgba channels to hide our 8 bits ascii characters, the naked eye can't really see any distortion (you may need to zoom in) :  
+![image](images/rgba_channel.png)

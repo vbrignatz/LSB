@@ -30,52 +30,24 @@ parser.add_argument('-m', "--mode", type=str, choices=["write", "read"], default
 
 args = parser.parse_args()
 
-def split_number(n):
-    """ Split a byte into two 4 bits parts 
-        (int) ~> (int, int)
-
-        >>> split_number(0b10100101)
-        (0b1010, 0b0101)
-    """
-    if n > 0b11111111:
-        raise AttributeError("The number given is not a Byte")
-    h_part = (n & 0b11110000) >> 4
-    l_part =  n & 0b1111
-    return h_part, l_part
-
-def concat_number(h_part, l_part):
-    """ Concatenate two 4 bits numbers into a byte.
-        (int, int) ~> (int)
-
-        >>> concat_number(0b1010, 0b0101)
-        0b10100101
-    """
-    if h_part > 0b1111 or l_part > 0b1111:
-        raise AttributeError("The parts given is not a 4 bits digits")
-    return (h_part << 4) + l_part
-
-def replace_lsb(number, bits):
-    """ Replace the 4 LSB by 4 bits
-        (int, int) ~> (int)
-
-        >>> replace_lsb(0b10100101, 0b1100)
-        0b10101100
-    """
-    return (number & 0b11110000) + bits
-
 def hide_message(rgba_img, message):
     """ Write the lsb from R and G channel of the picture to hide the message.
         (List<List<Tuple<int>>>, str) ~> (List<List<Tuple<int>>>)
 
-        >>> hide_message([[1, 2, 3, 0, 4, 5, 6, 0], [1, 2, 3, 0, 7, 8, 9, 0]], "abc")
-        [[6, 1, 3, 0, 6, 2, 6, 0], [6, 3, 3, 0, 7, 8, 9, 0]]
+        >>> hide_message([[2, 4, 6, 8, 10, 12, 14, 16], [32, 64, 65, 33, 7, 8, 9, 0]], "\x04\xff\x0a")
+        [[0, 5, 4, 8, 11, 15, 15, 19], [34, 66, 64, 32, 7, 8, 9, 0]]
     """
     width = int(len(rgba_img[0]) / 4)
     for k, char in enumerate(message):
-        h, l = split_number(ord(char))
         i, j = k%width, int(k/width)
-        rgba_img[j][i*4]   = replace_lsb(rgba_img[j][i*4], h)
-        rgba_img[j][i*4+1] = replace_lsb(rgba_img[j][i*4+1], l)
+        ord_char = ord(char)
+        # hide the char :
+        # 2 lsb in red
+        # then 2 in blue
+        # 2 in green
+        # and the 2 msb in alpha
+        for n in range(4):
+            rgba_img[j][i*4+n] = (rgba_img[j][i*4+n] & 0b11111100) + ((ord_char & (0b11 << n*2)) >> n*2)
     return rgba_img
 
 def find_message(rgba_img):
@@ -88,9 +60,10 @@ def find_message(rgba_img):
     msg = ""
     for row in rgba_img:
         for i in range(0, len(rgba_img[0])-3, 4):
-            _, h = split_number(row[i])
-            _, l = split_number(row[i+1])
-            msg += chr(concat_number(h, l))
+            char = 0
+            for n in range(4):
+                char += (row[i+n] & 0b11) << n*2
+            msg += chr(char)
     return msg
 
 if __name__ == "__main__":
@@ -106,6 +79,8 @@ if __name__ == "__main__":
             print("main.py: error: the following arguments are required when in writing mode: -t/--text")
             exit(0)
 
+        args.text = args.text.encode("ascii", "ignore").decode()
+
         print(f"Hiding '{args.text}' in hidden.png from image {args.filename}")
 
         # sanity check
@@ -118,9 +93,9 @@ if __name__ == "__main__":
         new_rgba_img = hide_message(rgba_img, args.text)
 
         # save new image in hidden.png 
-        w = png.Writer(width, height, bitdepth=8, greyscale=False, alpha=True)
+        w = png.Writer(width, 30, bitdepth=8, greyscale=False, alpha=True)
         f = open("hidden.png", 'wb')
-        w.write(f, new_rgba_img)
+        w.write(f, new_rgba_img[:30])
 
     elif args.mode == "read":
         # Find the message
